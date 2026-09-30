@@ -1,0 +1,52 @@
+{
+  "projects": [
+    {
+      "name": "Contributor Welcome Refresh",
+      "owner": "Mona",
+      "status": "On Track",
+      "recentActivity": "Updated the onboarding checklist with first-issue links and reviewer contacts.",
+      "priority": "High",
+      "summary": "Helps new contributors find a good first task faster."
+    },
+    {
+      "name": "Workflow Reliability Audit",
+      "owner": "Avery",
+      "status": "At Risk",
+      "recentActivity": "Two flaky CI steps were isolated, but rerun guidance still needs to be documented.",
+      "priority": "High",
+      "summary": "Improves confidence that contributor pull requests get consistent feedback."
+    },
+    {
+      "name": "Docs Navigation Cleanup",
+      "owner": "Priya",
+      "status": "On Track",
+      "recentActivity": "Merged a draft sidebar map and collected suggestions from the contributor office hours chat.",
+      "priority": "Medium",
+      "summary": "Makes key guides easier for contributors to browse and reuse."
+    },
+    {
+      "name": "Starter Task Backlog Triage",
+      "owner": "Diego",
+      "status": "Blocked",
+      "recentActivity": "Waiting on repository maintainers to confirm which older issues are still safe for newcomers.",
+      "priority": "Medium",
+      "summary": "Keeps the first-task queue accurate and welcoming for contributors."
+    },
+    {
+      "name": "Release Notes Template Update",
+      "owner": "Sam",
+      "status": "Completed",
+      "recentActivity": "Published the new changelog template and shared examples in the contributor handbook.",
+      "priority": "Low",
+      "summary": "Gives contributors a simple pattern for writing clear release notes."
+    },
+    {
+      "name": "Accessibility Checkpoint Sprint",
+      "owner": "Leah",
+      "status": "At Risk",
+      "recentActivity": "Screen reader findings were logged, but the label fixes need one more contributor pairing session.",
+      "priority": "High",
+      "summary": "Supports contributors in shipping changes that are easier for everyone to use."
+    }
+  ]
+}

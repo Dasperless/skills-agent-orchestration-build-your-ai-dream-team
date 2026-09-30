@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Pulse</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="dashboard-header" role="banner">
+    <div class="header-container">
+      <div class="header-brand">
+        <h1 class="dashboard-title">Project Pulse</h1>
+        <p class="dashboard-tagline">Real-time status, ownership, and recent activity across projects</p>
+      </div>
+      <div class="header-status" aria-label="Dashboard status">
+        <span class="live-dot" aria-hidden="true"></span>
+        <span class="live-label">Active Monitor</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="metrics-bar" aria-label="Project overview metrics">
+    <div class="metrics-container">
+      <div class="metric-card">
+        <span class="metric-label">Total Projects</span>
+        <span class="metric-value" id="stat-total">0</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">On Track</span>
+        <span class="metric-value metric-success" id="stat-ontrack">0</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">At Risk / Blocked</span>
+        <span class="metric-value metric-warning" id="stat-attention">0</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Completed</span>
+        <span class="metric-value metric-info" id="stat-completed">0</span>
+      </div>
+    </div>
+  </section>
+
+  <main id="main-content" class="dashboard-container" role="main">
+    <div id="status-announcer" class="sr-only" aria-live="polite">Loading Project Pulse projects...</div>
+
+    <div id="state-loading" class="state-container loading-state" role="status">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Loading project pulse data...</p>
+    </div>
+
+    <div id="state-error" class="state-container error-state" role="alert" hidden>
+      <p id="error-title" class="error-title">Unable to load project data</p>
+      <p id="error-detail" class="error-detail">Please verify that <code>project-data.json</code> is accessible.</p>
+    </div>
+
+    <div id="state-empty" class="state-container empty-state" hidden>
+      <p class="empty-title">No projects found</p>
+      <p class="empty-detail">There are currently no active projects tracked in the dashboard.</p>
+    </div>
+
+    <section class="dashboard" id="projects-grid" aria-label="Active projects"></section>
+  </main>
+
+  <footer class="dashboard-footer" role="contentinfo">
+    <p>Project Pulse &bull; Lightweight Contributor Intelligence</p>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const announcer = document.getElementById('status-announcer');
+      const loadingState = document.getElementById('state-loading');
+      const errorState = document.getElementById('state-error');
+      const errorTitle = document.getElementById('error-title');
+      const errorDetail = document.getElementById('error-detail');
+      const emptyState = document.getElementById('state-empty');
+      const projectsGrid = document.getElementById('projects-grid');
+
+      const totalCount = document.getElementById('stat-total');
+      const onTrackCount = document.getElementById('stat-ontrack');
+      const attentionCount = document.getElementById('stat-attention');
+      const completedCount = document.getElementById('stat-completed');
+
+      const statusMap = {
+        'On Track': { className: 'status-on-track', icon: '✓' },
+        'At Risk': { className: 'status-at-risk', icon: '⚠' },
+        'Blocked': { className: 'status-blocked', icon: '⛔' },
+        'Completed': { className: 'status-completed', icon: '★' }
+      };
+
+      const priorityMap = {
+        High: { className: 'priority-high', icon: '▲' },
+        Medium: { className: 'priority-medium', icon: '◆' },
+        Low: { className: 'priority-low', icon: '▽' }
+      };
+
+      function setMetrics(projects) {
+        totalCount.textContent = String(projects.length);
+        onTrackCount.textContent = String(projects.filter((project) => project.status === 'On Track').length);
+        attentionCount.textContent = String(
+          projects.filter((project) => project.status === 'At Risk' || project.status === 'Blocked').length
+        );
+        completedCount.textContent = String(projects.filter((project) => project.status === 'Completed').length);
+      }
+
+      function createBadge(label, value, icon, className, suffix) {
+        const badge = document.createElement('span');
+        badge.className = 'badge ' + className;
+
+        const badgeIcon = document.createElement('span');
+        badgeIcon.className = 'badge-icon';
+        badgeIcon.setAttribute('aria-hidden', 'true');
+        badgeIcon.textContent = icon;
+
+        const badgeText = document.createElement('span');
+        badgeText.className = 'badge-text';
+
+        const srPrefix = document.createElement('span');
+        srPrefix.className = 'sr-only';
+        srPrefix.textContent = label + ': ';
+
+        const visibleText = document.createTextNode(suffix ? value + ' ' + suffix : value);
+
+        badgeText.appendChild(srPrefix);
+        badgeText.appendChild(visibleText);
+        badge.appendChild(badgeIcon);
+        badge.appendChild(badgeText);
+
+        return badge;
+      }
+
+      function createProjectCard(project, index) {
+        const article = document.createElement('article');
+        article.className = 'project-card';
+        article.tabIndex = 0;
+        article.setAttribute('aria-labelledby', 'project-title-' + index);
+
+        const cardHeader = document.createElement('header');
+        cardHeader.className = 'card-header';
+
+        const titleGroup = document.createElement('div');
+        titleGroup.className = 'card-title-group';
+
+        const title = document.createElement('h2');
+        title.className = 'project-name';
+        title.id = 'project-title-' + index;
+        title.textContent = project.name;
+
+        const ownerBadge = document.createElement('div');
+        ownerBadge.className = 'project-owner-badge';
+
+        const ownerIcon = document.createElement('span');
+        ownerIcon.className = 'owner-icon';
+        ownerIcon.setAttribute('aria-hidden', 'true');
+        ownerIcon.textContent = '👤';
+
+        const ownerLabel = document.createElement('span');
+        ownerLabel.className = 'owner-label sr-only';
+        ownerLabel.textContent = 'Lead owner:';
+
+        const ownerText = document.createElement('span');
+        ownerText.className = 'project-owner';
+        ownerText.textContent = project.owner;
+
+        ownerBadge.appendChild(ownerIcon);
+        ownerBadge.appendChild(ownerLabel);
+        ownerBadge.appendChild(ownerText);
+
+        titleGroup.appendChild(title);
+        titleGroup.appendChild(ownerBadge);
+
+        const badgeGroup = document.createElement('div');
+        badgeGroup.className = 'badge-group';
+        badgeGroup.setAttribute('aria-label', 'Status and Priority');
+
+        const statusConfig = statusMap[project.status] || { className: 'status-unknown', icon: '•' };
+        const priorityConfig = priorityMap[project.priority] || { className: 'priority-unknown', icon: '•' };
+
+        badgeGroup.appendChild(createBadge('Status', project.status, statusConfig.icon, 'badge-status ' + statusConfig.className, ''));
+        badgeGroup.appendChild(
+          createBadge('Priority', project.priority, priorityConfig.icon, 'badge-priority ' + priorityConfig.className, 'Priority')
+        );
+
+        cardHeader.appendChild(titleGroup);
+        cardHeader.appendChild(badgeGroup);
+
+        const cardBody = document.createElement('div');
+        cardBody.className = 'card-body';
+
+        const summary = document.createElement('p');
+        summary.className = 'project-summary';
+        summary.textContent = project.summary;
+        cardBody.appendChild(summary);
+
+        const cardFooter = document.createElement('footer');
+        cardFooter.className = 'card-footer';
+
+        const activitySection = document.createElement('div');
+        activitySection.className = 'activity-section';
+
+        const activityHeader = document.createElement('div');
+        activityHeader.className = 'activity-header';
+
+        const activityIcon = document.createElement('span');
+        activityIcon.className = 'activity-icon';
+        activityIcon.setAttribute('aria-hidden', 'true');
+        activityIcon.textContent = '⏱';
+
+        const activityLabel = document.createElement('span');
+        activityLabel.className = 'activity-label';
+        activityLabel.textContent = 'Recent Activity';
+
+        activityHeader.appendChild(activityIcon);
+        activityHeader.appendChild(activityLabel);
+
+        const recentActivity = document.createElement('p');
+        recentActivity.className = 'recentActivity';
+        recentActivity.textContent = project.recentActivity;
+
+        activitySection.appendChild(activityHeader);
+        activitySection.appendChild(recentActivity);
+        cardFooter.appendChild(activitySection);
+
+        article.appendChild(cardHeader);
+        article.appendChild(cardBody);
+        article.appendChild(cardFooter);
+
+        return article;
+      }
+
+      function renderProjects(projects) {
+        const fragment = document.createDocumentFragment();
+
+        projects.forEach((project, index) => {
+          fragment.appendChild(createProjectCard(project, index));
+        });
+
+        projectsGrid.replaceChildren(fragment);
+      }
+
+      function showErrorForFileProtocol() {
+        loadingState.hidden = true;
+        errorState.hidden = false;
+
+        errorTitle.textContent = 'This dashboard must be served over HTTP';
+
+        const detailFragment = document.createDocumentFragment();
+        detailFragment.appendChild(
+          document.createTextNode('Open this dashboard with the VS Code "Run Project Pulse Dashboard" launch configuration, or run ')
+        );
+
+        const serveCommand = document.createElement('code');
+        serveCommand.textContent = 'cd app && python3 -m http.server 5500';
+        detailFragment.appendChild(serveCommand);
+
+        detailFragment.appendChild(document.createTextNode(', then open '));
+
+        const localUrl = document.createElement('code');
+        localUrl.textContent = 'http://localhost:5500/index.html';
+        detailFragment.appendChild(localUrl);
+
+        detailFragment.appendChild(document.createTextNode('.'));
+        errorDetail.replaceChildren(detailFragment);
+
+        announcer.textContent = 'Project Pulse must be served over HTTP. Open it with the Run Project Pulse Dashboard launch configuration or at http://localhost:5500/index.html.';
+      }
+
+      function showGenericError(statusCode) {
+        loadingState.hidden = true;
+        errorState.hidden = false;
+        errorTitle.textContent = 'Unable to load project data';
+
+        const detailFragment = document.createDocumentFragment();
+        detailFragment.appendChild(document.createTextNode('Please verify that '));
+
+        const dataFile = document.createElement('code');
+        dataFile.textContent = 'project-data.json';
+        detailFragment.appendChild(dataFile);
+
+        detailFragment.appendChild(document.createTextNode(' is accessible'));
+
+        if (typeof statusCode === 'number') {
+          detailFragment.appendChild(document.createTextNode(' (HTTP status ' + statusCode + ')'));
+        }
+
+        detailFragment.appendChild(document.createTextNode('.'));
+        errorDetail.replaceChildren(detailFragment);
+
+        announcer.textContent = 'Failed to load project pulse data.';
+      }
+
+      fetch('project-data.json')
+        .then((response) => {
+          if (!response.ok) {
+            const httpError = new Error('Unable to load project-data.json');
+            httpError.status = response.status;
+            throw httpError;
+          }
+          return response.json();
+        })
+        .then((data) => {
+          const projects = Array.isArray(data.projects) ? data.projects : [];
+
+          loadingState.hidden = true;
+          setMetrics(projects);
+
+          if (projects.length === 0) {
+            emptyState.hidden = false;
+            announcer.textContent = 'No projects available.';
+            return;
+          }
+
+          renderProjects(projects);
+          announcer.textContent = 'Loaded ' + projects.length + ' active projects.';
+        })
+        .catch((error) => {
+          if (window.location.protocol === 'file:') {
+            showErrorForFileProtocol();
+            return;
+          }
+
+          showGenericError(error.status);
+        });
+    });
+  </script>
+</body>
+</html>
